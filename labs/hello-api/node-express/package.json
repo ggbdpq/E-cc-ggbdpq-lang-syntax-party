@@ -1,0 +1,14 @@
+{
+  "name": "hello-express",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Syntax Party lab: GET /hello with Express",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
