@@ -122,3 +122,21 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 	}
 	t.Fatalf("PORT must select listener :%s; server output:\n%s", port, output)
 }
+
+func TestMainListenerFailure(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "auth-todo")
+	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build server: %v\n%s", err, output)
+	}
+	command := exec.CommandContext(t.Context(), binary)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "PORT=") {
+			command.Env = append(command.Env, entry)
+		}
+	}
+	command.Env = append(command.Env, "PORT=invalid")
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("invalid PORT must fail startup with nonzero status; output:\n%s", output)
+	}
+}

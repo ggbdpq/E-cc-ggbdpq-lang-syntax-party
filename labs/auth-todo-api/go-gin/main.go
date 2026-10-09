@@ -147,7 +147,7 @@ func jwtAuth() gin.HandlerFunc {
 
 func currentUser(c *gin.Context) User {
 	v, _ := c.Get("user")
-	return v.(User)
+	return v.(User) //nolint:errcheck,forcetypeassert // jwtAuth 验证后写入 User，仅已认证路由调用。
 }
 
 func main() {
@@ -273,5 +273,7 @@ func main() {
 	if port == "" {
 		port = "8023"
 	}
-	r.Run(":" + port)
+	if err := r.Run(":" + port); err != nil {
+		panic(err)
+	}
 }
