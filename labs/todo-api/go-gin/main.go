@@ -35,10 +35,12 @@ func cors() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
+
 		c.Next()
 	}
 }
@@ -49,6 +51,7 @@ func findIndex(id int) int {
 			return i
 		}
 	}
+
 	return -1
 }
 
@@ -63,6 +66,7 @@ func main() {
 	r.GET("/todos", func(c *gin.Context) {
 		mu.Lock()
 		defer mu.Unlock()
+
 		c.JSON(http.StatusOK, gin.H{"items": todos})
 	})
 
@@ -72,9 +76,11 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "title required"})
 			return
 		}
+
 		mu.Lock()
 		item := Todo{ID: seq, Title: body.Title, Done: false}
 		seq++
+
 		todos = append(todos, item)
 		mu.Unlock()
 		c.JSON(http.StatusCreated, item)
@@ -86,24 +92,30 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 			return
 		}
+
 		var body patchIn
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 			return
 		}
+
 		mu.Lock()
 		defer mu.Unlock()
+
 		i := findIndex(id)
 		if i < 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		if body.Title != nil && *body.Title != "" {
 			todos[i].Title = *body.Title
 		}
+
 		if body.Done != nil {
 			todos[i].Done = *body.Done
 		}
+
 		c.JSON(http.StatusOK, todos[i])
 	})
 
@@ -113,14 +125,18 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 			return
 		}
+
 		mu.Lock()
 		defer mu.Unlock()
+
 		i := findIndex(id)
 		if i < 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		todos = append(todos[:i], todos[i+1:]...)
+
 		c.Status(http.StatusNoContent)
 	})
 

@@ -16,6 +16,7 @@ func main() {
 			"framework": "Gin",
 		})
 	})
+
 	if err := r.Run(":8003"); err != nil {
 		panic(err)
 	}

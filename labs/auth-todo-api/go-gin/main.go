@@ -56,6 +56,7 @@ func mustHash(raw string) []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	return hash
 }
 
@@ -64,10 +65,12 @@ func cors() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
+
 		c.Next()
 	}
 }
@@ -82,6 +85,7 @@ func findUserByName(name string) *User {
 			return &users[i]
 		}
 	}
+
 	return nil
 }
 
@@ -91,6 +95,7 @@ func findUserByID(id int) *User {
 			return &users[i]
 		}
 	}
+
 	return nil
 }
 
@@ -100,6 +105,7 @@ func findTodoIndex(id int) int {
 			return i
 		}
 	}
+
 	return -1
 }
 
@@ -114,33 +120,41 @@ func jwtAuth() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		raw := strings.TrimSpace(header[7:])
+
 		token, err := jwt.Parse(raw, func(t *jwt.Token) (any, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, jwt.ErrSignatureInvalid
 			}
+
 			return []byte(secret), nil
 		})
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		sub, _ := claims["sub"].(string)
+
 		id, err := strconv.Atoi(sub)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		user := findUserByID(id)
 		if user == nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		c.Set("user", *user)
 		c.Next()
 	}
@@ -170,22 +184,26 @@ func main() {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 			return
 		}
+
 		user := findUserByName(body.Username)
 		if user == nil || bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(body.Password)) != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 			return
 		}
+
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"sub":      strconv.Itoa(user.ID),
 			"username": user.Username,
 			"role":     user.Role,
 			"exp":      time.Now().Add(time.Hour).Unix(),
 		})
+
 		signed, err := token.SignedString([]byte(secret))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "sign failed"})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{"token": signed, "user": publicUser(*user)})
 	})
 
@@ -196,14 +214,18 @@ func main() {
 	})
 	auth.GET("/todos", func(c *gin.Context) {
 		user := currentUser(c)
+
 		mu.Lock()
 		defer mu.Unlock()
+
 		items := make([]Todo, 0)
+
 		for _, t := range todos {
 			if user.Role == "admin" || t.OwnerID == user.ID {
 				items = append(items, t)
 			}
 		}
+
 		c.JSON(http.StatusOK, gin.H{"items": items})
 	})
 	auth.POST("/todos", func(c *gin.Context) {
@@ -212,10 +234,13 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
 			return
 		}
+
 		user := currentUser(c)
+
 		mu.Lock()
 		item := Todo{ID: seq, Title: strings.TrimSpace(body.Title), Done: false, OwnerID: user.ID}
 		seq++
+
 		todos = append(todos, item)
 		mu.Unlock()
 		c.JSON(http.StatusCreated, item)
@@ -226,26 +251,34 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		var body patchIn
+
 		_ = c.ShouldBindJSON(&body)
 		user := currentUser(c)
+
 		mu.Lock()
 		defer mu.Unlock()
+
 		i := findTodoIndex(id)
 		if i < 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		if !canWrite(user, todos[i]) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
 		}
+
 		if body.Title != nil && strings.TrimSpace(*body.Title) != "" {
 			todos[i].Title = strings.TrimSpace(*body.Title)
 		}
+
 		if body.Done != nil {
 			todos[i].Done = *body.Done
 		}
+
 		c.JSON(http.StatusOK, todos[i])
 	})
 	auth.DELETE("/todos/:id", func(c *gin.Context) {
@@ -254,19 +287,25 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		user := currentUser(c)
+
 		mu.Lock()
 		defer mu.Unlock()
+
 		i := findTodoIndex(id)
 		if i < 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
 		if !canWrite(user, todos[i]) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
 		}
+
 		todos = append(todos[:i], todos[i+1:]...)
+
 		c.Status(http.StatusNoContent)
 	})
 
@@ -274,6 +313,7 @@ func main() {
 	if port == "" {
 		port = "8023"
 	}
+
 	if err := r.Run(":" + port); err != nil {
 		panic(err)
 	}
