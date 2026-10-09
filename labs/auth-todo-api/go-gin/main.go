@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,5 +269,9 @@ func main() {
 		c.Status(http.StatusNoContent)
 	})
 
-	r.Run(":8023")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8023"
+	}
+	r.Run(":" + port)
 }

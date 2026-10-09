@@ -40,6 +40,8 @@ Todo：`{ "id": number, "title": string, "done": boolean, "ownerId": number }`
 | `rust-axum/` | 8024 | `cargo run` |
 | `java-springboot/` | 8025 | `mvn -s settings-aliyun.xml package -DskipTests` 后跑 jar |
 
+Go 版支持 `PORT` 环境变量，未设置或为空时保持 `8023`；例如 `PORT=18023 go run .`。
+
 验证（把端口换成 8021–8025）：
 
 ```bash
