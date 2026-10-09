@@ -43,46 +43,22 @@ func TestMainPortEnvironment(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			command := exec.CommandContext(t.Context(), binary)
-			for _, entry := range os.Environ() {
-				if !strings.HasPrefix(entry, "PORT=") && !strings.HasPrefix(entry, "GIN_MODE=") {
-					command.Env = append(command.Env, entry)
-				}
+			value := port
+			if tc.port != nil && *tc.port == "" {
+				value = ""
 			}
-			command.Env = append(command.Env, "GIN_MODE=debug")
-			if tc.port != nil {
-				value := *tc.port
-				if value == "custom" {
-					value = port
-				}
-				command.Env = append(command.Env, "PORT="+value)
-			}
-			logPath := filepath.Join(t.TempDir(), "server.log")
-			output, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0o600)
-			if err != nil {
-				t.Fatal(err)
-			}
-			command.Stdout = output
-			command.Stderr = output
-			if err := command.Start(); err != nil {
-				if closeErr := output.Close(); closeErr != nil {
-					t.Error(closeErr)
-				}
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				if err := command.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-					t.Error(err)
-				}
-				var exitError *exec.ExitError
-				if err := command.Wait(); err != nil && !errors.As(err, &exitError) && !errors.Is(err, context.Canceled) {
-					t.Error(err)
-				}
-				if err := output.Close(); err != nil {
-					t.Error(err)
-				}
-			})
-			waitForPort(t, logPath, port, tc.port != nil && *tc.port == "custom")
+			logPath := startLab(
+				t,
+				binary,
+				value,
+				tc.port != nil,
+			)
+			waitForPort(
+				t,
+				logPath,
+				port,
+				tc.port != nil && *tc.port == "custom",
+			)
 		})
 	}
 }
@@ -96,22 +72,24 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(output), "Listening and serving HTTP on :"+port) {
-			if !checkHTTP {
-				return
-			}
-			request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:"+port+"/health", nil)
-			if err != nil {
+		if !strings.Contains(string(output), "Listening and serving HTTP on :"+port) {
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		if !checkHTTP {
+			return
+		}
+		request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:"+port+"/health", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := client.Do(request)
+		if err == nil {
+			if err := response.Body.Close(); err != nil {
 				t.Fatal(err)
 			}
-			response, err := client.Do(request)
-			if err == nil {
-				if err := response.Body.Close(); err != nil {
-					t.Fatal(err)
-				}
-				if response.StatusCode == http.StatusOK {
-					return
-				}
+			if response.StatusCode == http.StatusOK {
+				return
 			}
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -139,4 +117,44 @@ func TestMainListenerFailure(t *testing.T) {
 	if output, err := command.CombinedOutput(); err == nil {
 		t.Fatalf("invalid PORT must fail startup with nonzero status; output:\n%s", output)
 	}
+}
+
+func startLab(t *testing.T, binary, port string, setPort bool) string {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), binary)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "PORT=") && !strings.HasPrefix(entry, "GIN_MODE=") {
+			command.Env = append(command.Env, entry)
+		}
+	}
+	command.Env = append(command.Env, "GIN_MODE=debug")
+	if setPort {
+		command.Env = append(command.Env, "PORT="+port)
+	}
+	logPath := filepath.Join(t.TempDir(), "server.log")
+	output, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command.Stdout = output
+	command.Stderr = output
+	if err := command.Start(); err != nil {
+		if closeErr := output.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := command.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Error(err)
+		}
+		var exitError *exec.ExitError
+		if err := command.Wait(); err != nil && !errors.As(err, &exitError) && !errors.Is(err, context.Canceled) {
+			t.Error(err)
+		}
+		if err := output.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return logPath
 }
