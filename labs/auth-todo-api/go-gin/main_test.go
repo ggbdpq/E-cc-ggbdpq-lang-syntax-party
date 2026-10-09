@@ -14,6 +14,7 @@ import (
 )
 
 func TestMainPortEnvironment(t *testing.T) {
+	t.Parallel()
 	binary := filepath.Join(t.TempDir(), "auth-todo")
 	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
@@ -29,6 +30,7 @@ func TestMainPortEnvironment(t *testing.T) {
 		{name: "custom port serves HTTP", port: new("custom")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			port := "8023"
 			if tc.port != nil && *tc.port == "custom" {
 				listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -102,6 +104,7 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 }
 
 func TestMainListenerFailure(t *testing.T) {
+	t.Parallel()
 	binary := filepath.Join(t.TempDir(), "auth-todo")
 	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
@@ -136,12 +139,14 @@ func startLab(t *testing.T, binary, port string, setPort bool) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := output.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	command.Stdout = output
 	command.Stderr = output
 	if err := command.Start(); err != nil {
-		if closeErr := output.Close(); closeErr != nil {
-			t.Error(closeErr)
-		}
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -150,9 +155,6 @@ func startLab(t *testing.T, binary, port string, setPort bool) string {
 		}
 		var exitError *exec.ExitError
 		if err := command.Wait(); err != nil && !errors.As(err, &exitError) && !errors.Is(err, context.Canceled) {
-			t.Error(err)
-		}
-		if err := output.Close(); err != nil {
 			t.Error(err)
 		}
 	})

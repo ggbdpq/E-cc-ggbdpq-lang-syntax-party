@@ -8,6 +8,7 @@ import (
 )
 
 func TestMainListenerFailure(t *testing.T) {
+	t.Parallel()
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", ":8003")
 	if err != nil {
 		t.Fatalf("reserve default port: %v", err)
