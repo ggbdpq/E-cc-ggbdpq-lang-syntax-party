@@ -16,7 +16,7 @@ import (
 func TestMainPortEnvironment(t *testing.T) {
 	t.Parallel()
 	binary := filepath.Join(t.TempDir(), "auth-todo")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
+	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".") // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build server: %v\n%s", err, output)
 	}
@@ -70,7 +70,7 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 	client := &http.Client{Timeout: 100 * time.Millisecond}
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		output, err := os.ReadFile(logPath)
+		output, err := os.ReadFile(logPath) // #nosec G304 -- logPath 仅由 t.TempDir 和固定文件名生成，不读取用户路径。
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -96,7 +96,7 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	output, err := os.ReadFile(logPath)
+	output, err := os.ReadFile(logPath) // #nosec G304 -- logPath 仅由 t.TempDir 和固定文件名生成，不读取用户路径。
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,11 +106,11 @@ func waitForPort(t *testing.T, logPath, port string, checkHTTP bool) {
 func TestMainListenerFailure(t *testing.T) {
 	t.Parallel()
 	binary := filepath.Join(t.TempDir(), "auth-todo")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
+	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".") // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build server: %v\n%s", err, output)
 	}
-	command := exec.CommandContext(t.Context(), binary)
+	command := exec.CommandContext(t.Context(), binary) // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(entry, "PORT=") {
 			command.Env = append(command.Env, entry)
@@ -124,7 +124,7 @@ func TestMainListenerFailure(t *testing.T) {
 
 func startLab(t *testing.T, binary, port string, setPort bool) string {
 	t.Helper()
-	command := exec.CommandContext(t.Context(), binary)
+	command := exec.CommandContext(t.Context(), binary) // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(entry, "PORT=") && !strings.HasPrefix(entry, "GIN_MODE=") {
 			command.Env = append(command.Env, entry)
@@ -135,7 +135,7 @@ func startLab(t *testing.T, binary, port string, setPort bool) string {
 		command.Env = append(command.Env, "PORT="+port)
 	}
 	logPath := filepath.Join(t.TempDir(), "server.log")
-	output, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0o600)
+	output, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304 -- logPath 仅由 t.TempDir 和固定文件名生成，不读取用户路径。
 	if err != nil {
 		t.Fatal(err)
 	}

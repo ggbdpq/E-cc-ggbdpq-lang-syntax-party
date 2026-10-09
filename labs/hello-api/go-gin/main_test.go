@@ -20,12 +20,12 @@ func TestMainListenerFailure(t *testing.T) {
 	})
 
 	binary := filepath.Join(t.TempDir(), "hello-api")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
+	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".") // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build server: %v\n%s", err, output)
 	}
 
-	command := exec.CommandContext(t.Context(), binary)
+	command := exec.CommandContext(t.Context(), binary) // #nosec G204 -- 仅启动当前 module 或本测试 t.TempDir 中构建的固定程序，不接收外部命令。
 	if output, err := command.CombinedOutput(); err == nil {
 		t.Fatalf("occupied port must fail startup with nonzero status; output:\n%s", output)
 	}
