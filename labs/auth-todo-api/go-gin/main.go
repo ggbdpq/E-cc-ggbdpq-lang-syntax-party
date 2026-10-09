@@ -115,7 +115,7 @@ func jwtAuth() gin.HandlerFunc {
 			return
 		}
 		raw := strings.TrimSpace(header[7:])
-		token, err := jwt.Parse(raw, func(t *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(raw, func(t *jwt.Token) (any, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, jwt.ErrSignatureInvalid
 			}
